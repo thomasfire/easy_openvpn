@@ -1,0 +1,7 @@
+[package]
+name = "easy_openvpn"
+version = "0.1.0"
+authors = ["thomasfire <thomasfire@yandex.ru>"]
+
+[dependencies]
+toml = "0.4"
