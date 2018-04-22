@@ -22,12 +22,7 @@ fn read_config() -> Result<Config, &'static str> {
     Ok(config)
 }
 
-fn write_config(dir: &str, default_file: &str) -> Result<&'static str, &'static str> {
-    let config = Config {
-        directory: String::from_str(dir),
-        default_file: String::from_str(default_file),
-    };
-
+fn write_config(config: Config) -> Result<()> {
     let conf_str = match toml::to_string(&config) {
         Ok(value) => value,
         Err(err) => {
@@ -49,7 +44,39 @@ fn write_config(dir: &str, default_file: &str) -> Result<&'static str, &'static 
     }
 
     match io_tools::write_to_file("~/.ovpn/easy_openvpn.config", conf_str) {
-        Ok(_) => return ("Ok"),
-        Err(err) => println!("An error occured while writing to the config: {}", err),
+        Ok(_) => return Ok("Ok"),
+        Err(err) => {
+            println!("An error occured while writing to the config: {}", err);
+            return Err(err);
+        }
     };
+}
+
+fn update_config(key: &str, value: &str) -> Result<()> {
+    let mut config = match read_config() {
+        Ok(v) => v,
+        Err(err) => {
+            println!("Something went wrong in updating the config: {}", err);
+            return Err(err);
+        }
+    };
+
+    match key {
+        "directory" => config.directory = String::from_str(value),
+        "default_file" => config.default_file = String::from_str(value),
+        _ => return Err("Wrong key in update_config"),
+    };
+
+    match write_config(config) {
+        Ok(_) => println!("The config has been updated"),
+        Err(err) => {
+            println!("Error while updating the config: {}", err);
+            return Err(err);
+        }
+    }
+    Ok()
+}
+
+fn setup() => Result<()> {
+    // TODO
 }
