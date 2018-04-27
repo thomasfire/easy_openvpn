@@ -52,7 +52,7 @@ pub fn exists(path: &str) -> bool {
 /// ```rust
 /// write_to_file("/path/to/file", "I`m file");
 /// ```
-pub fn write_to_file(path: &str, content: String) -> Result<()> {
+pub fn write_to_file(path: &str, content: String) -> Result<(), io::Error> {
     let mut file = File::create(path).unwrap();
     file.write_fmt(format_args!("{}", content))
 }

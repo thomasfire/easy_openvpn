@@ -1,7 +1,10 @@
+//#[macro_use]
+//extern crate serde_derive;
 extern crate toml;
 use io_tools;
 use std::fs::create_dir;
 
+#[derive(Serialize, Deserialize)]
 struct Config {
     directory: String,
     default_file: String,
@@ -16,18 +19,18 @@ fn read_config() -> Result<Config, &'static str> {
         Ok(value) => value,
         Err(err) => {
             println!("Something goes wrong while reading the config: {}", err);
-            return Err(err);
+            return Err(&format!("{:?}",err));
         }
     };
     Ok(config)
 }
 
-fn write_config(config: Config) -> Result<()> {
+fn write_config(config: Config) -> Result<(), &'static str> {
     let conf_str = match toml::to_string(&config) {
         Ok(value) => value,
         Err(err) => {
             println!("Something went wrong while parsing the config: {}", err);
-            return (err);
+            panic!("{}", err);
         }
     };
 
@@ -38,21 +41,21 @@ fn write_config(config: Config) -> Result<()> {
             }
             Err(err) => {
                 println!("An error occured in creating the direcrory: {}", err);
-                return Err(err);
+                return Err(&format!("{:?}",err));
             }
         };
     }
 
     match io_tools::write_to_file("~/.ovpn/easy_openvpn.config", conf_str) {
-        Ok(_) => return Ok("Ok"),
+        Ok(_) => return Ok(),
         Err(err) => {
             println!("An error occured while writing to the config: {}", err);
-            return Err(err);
+            return Err(&format!("{:?}",err));
         }
     };
 }
 
-fn update_config(key: &str, value: &str) -> Result<()> {
+fn update_config(key: &str, value: &str) -> Result<(), ()> {
     let mut config = match read_config() {
         Ok(v) => v,
         Err(err) => {
@@ -77,6 +80,21 @@ fn update_config(key: &str, value: &str) -> Result<()> {
     Ok()
 }
 
-fn setup() => Result<()> {
-    // TODO
+fn setup() -> Result<(), ()> {
+    let dir = io_tools::read_std_line("Enter path to your working directory: ");
+    let default_file = io_tools::read_std_line("Enter name of the file in the working directory: ");
+
+    if !io_tools::exists(format!("{}/{}", dir, default_file)) {
+        return Err("Wrong path. Maybe you wrote `/ ` in working directory");
+    }
+
+    let config = Config { dir, default_file };
+
+    match write_config(config) {
+        Ok(_) => return Ok("Ok"),
+        Err(err) => {
+            println!("Something went wrong in setup: {}", err);
+            return err;
+        }
+    }
 }
