@@ -1,5 +1,3 @@
-//#[macro_use]
-//extern crate serde_derive;
 extern crate toml;
 use io_tools;
 use std::fs::create_dir;
@@ -10,22 +8,24 @@ struct Config {
     default_file: String,
 }
 
-fn read_config() -> Result<Config, &'static str> {
+fn read_config() -> Result<Config, String> {
     if !io_tools::exists("~/.ovpn/easy_openvpn.config") {
-        return Err("No setup was processed. Please run `$ easy_openvpn --setup` for setup");
+        return Err(String::from(
+            "No setup was processed. Please run `$ easy_openvpn --setup` for setup",
+        ));
     }
     let conf_str = io_tools::read_str("~/.ovpn/easy_openvpn.config");
     let config: Config = match toml::from_str(&conf_str) {
         Ok(value) => value,
         Err(err) => {
             println!("Something goes wrong while reading the config: {}", err);
-            return Err(&format!("{:?}",err));
+            return Err(format!("{:?}", err));
         }
     };
     Ok(config)
 }
 
-fn write_config(config: Config) -> Result<(), &'static str> {
+fn write_config(config: Config) -> Result<(), String> {
     let conf_str = match toml::to_string(&config) {
         Ok(value) => value,
         Err(err) => {
@@ -41,33 +41,33 @@ fn write_config(config: Config) -> Result<(), &'static str> {
             }
             Err(err) => {
                 println!("An error occured in creating the direcrory: {}", err);
-                return Err(&format!("{:?}",err));
+                return Err(format!("{:?}", err));
             }
         };
     }
 
     match io_tools::write_to_file("~/.ovpn/easy_openvpn.config", conf_str) {
-        Ok(_) => return Ok(),
+        Ok(_) => return Ok(()),
         Err(err) => {
             println!("An error occured while writing to the config: {}", err);
-            return Err(&format!("{:?}",err));
+            return Err(format!("{:?}", err));
         }
     };
 }
 
-fn update_config(key: &str, value: &str) -> Result<(), ()> {
+fn update_config(key: &str, value: &str) -> Result<(), String> {
     let mut config = match read_config() {
         Ok(v) => v,
         Err(err) => {
             println!("Something went wrong in updating the config: {}", err);
-            return Err(err);
+            return Err(format!("{:?}", err));
         }
     };
 
     match key {
-        "directory" => config.directory = String::from_str(value),
-        "default_file" => config.default_file = String::from_str(value),
-        _ => return Err("Wrong key in update_config"),
+        "directory" => config.directory = String::from(value),
+        "default_file" => config.default_file = String::from(value),
+        _ => return Err(String::from("Wrong key in update_config")),
     };
 
     match write_config(config) {
@@ -77,24 +77,62 @@ fn update_config(key: &str, value: &str) -> Result<(), ()> {
             return Err(err);
         }
     }
-    Ok()
+    Ok(())
 }
 
-fn setup() -> Result<(), ()> {
-    let dir = io_tools::read_std_line("Enter path to your working directory: ");
-    let default_file = io_tools::read_std_line("Enter name of the file in the working directory: ");
+fn choose_file(directory: &str) -> Result<String, String> {
+    let files = io_tools::get_ovpn_files(directory);
+    println!("Choose file you want to connect:\n");
+    println!("l - last file;\n r - random file from the directory");
+    for x in 0..files.len() {
+        println!("{} - {}", x, files[x]);
+    }
+    let choosen = io_tools::read_std_line("=> ");
+    let n: i32 = match choosen.parse::<i32>() {
+        Ok(t) => t,
+        Err(_) => -1,
+    };
+    if !n <= -1 {
+        if n as usize >= files.len() {
+            return Err(String::from("You number is bigger than you have files."));
+        }
+        return Ok(format!("{}", files[n as usize]));
+    }
+    match choosen.as_str() {
+        "r" => return Ok(String::from("random")),
+        "l" => return Ok(String::from("last")),
+        _ => {
+            return Err(String::from(
+                "Your choice must be `l`, `r` or number from 0.",
+            ))
+        }
+    }
+}
 
-    if !io_tools::exists(format!("{}/{}", dir, default_file)) {
-        return Err("Wrong path. Maybe you wrote `/ ` in working directory");
+fn setup() -> Result<(), String> {
+    let directory = io_tools::read_std_line("Enter path to your working directory: ");
+    let mut default_file = String::new();
+
+    loop {
+        match choose_file(directory) {
+            Ok(name) => {
+                default_file = name;
+                break;
+            }
+            Err(err) => println!("{}", err),
+        };
     }
 
-    let config = Config { dir, default_file };
+    let config = Config {
+        directory,
+        default_file,
+    };
 
     match write_config(config) {
-        Ok(_) => return Ok("Ok"),
+        Ok(_) => return Ok(()),
         Err(err) => {
             println!("Something went wrong in setup: {}", err);
-            return err;
+            return Err(err);
         }
     }
 }

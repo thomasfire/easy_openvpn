@@ -6,3 +6,4 @@ authors = ["thomasfire <thomasfire@yandex.ru>"]
 [dependencies]
 toml = "0.4"
 serde_derive = "1.0.*"
+serde = "1.0.*"
