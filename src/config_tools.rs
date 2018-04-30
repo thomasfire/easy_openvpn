@@ -3,18 +3,25 @@ use io_tools;
 use std::fs::create_dir;
 
 #[derive(Serialize, Deserialize)]
-struct Config {
+pub struct Config {
     directory: String,
     default_file: String,
 }
 
-fn read_config() -> Result<Config, String> {
-    if !io_tools::exists("~/.ovpn/easy_openvpn.config") {
+/// Reads `~/.ovpn/easy_openvpn.config.toml` and returns Result with Config on Ok()
+///
+/// # Examples
+///
+/// ```rust
+/// let config = read_config().unwrap();
+/// ```
+pub fn read_config() -> Result<Config, String> {
+    if !io_tools::exists("~/.ovpn/easy_openvpn.config.toml") {
         return Err(String::from(
             "No setup was processed. Please run `$ easy_openvpn --setup` for setup",
         ));
     }
-    let conf_str = io_tools::read_str("~/.ovpn/easy_openvpn.config");
+    let conf_str = io_tools::read_str("~/.ovpn/easy_openvpn.config.toml");
     let config: Config = match toml::from_str(&conf_str) {
         Ok(value) => value,
         Err(err) => {
@@ -25,7 +32,18 @@ fn read_config() -> Result<Config, String> {
     Ok(config)
 }
 
-fn write_config(config: Config) -> Result<(), String> {
+/// Writes Config to the `~/.ovpn/easy_openvpn.config.toml`, returns Result
+///
+/// # Examples
+///
+/// ```rust
+/// let config = Config {
+///     directory: String::from("~/.ovpn"),
+///     default_file: String::from("~/San_Francisco.ovpn"),
+/// };
+/// write_config(config).unwrap();
+/// ```
+pub fn write_config(config: Config) -> Result<(), String> {
     let conf_str = match toml::to_string(&config) {
         Ok(value) => value,
         Err(err) => {
@@ -46,7 +64,7 @@ fn write_config(config: Config) -> Result<(), String> {
         };
     }
 
-    match io_tools::write_to_file("~/.ovpn/easy_openvpn.config", conf_str) {
+    match io_tools::write_to_file("~/.ovpn/easy_openvpn.config.toml", conf_str) {
         Ok(_) => return Ok(()),
         Err(err) => {
             println!("An error occured while writing to the config: {}", err);
@@ -55,7 +73,15 @@ fn write_config(config: Config) -> Result<(), String> {
     };
 }
 
-fn update_config(key: &str, value: &str) -> Result<(), String> {
+/// Updates one item of the config
+///
+/// # Examples
+///
+/// ```rust
+/// update_config("directory", "~/OpenVPN").unwrap();
+/// update_config("defailt_file", "Telegram.ovpn").unwrap();
+/// ```
+pub fn update_config(key: &str, value: &str) -> Result<(), String> {
     let mut config = match read_config() {
         Ok(v) => v,
         Err(err) => {
@@ -80,7 +106,17 @@ fn update_config(key: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn choose_file(directory: &str) -> Result<String, String> {
+/// Asks user to choose file and returns filename, or `last` or `random` on Ok() and error string on Err()
+///
+/// # Examples
+///
+/// ```rust
+/// let filename = match choose_file("~/.ovpn") {
+///     Ok(name) => name,
+///     Err(err) => panic!("{}", err),
+/// };
+/// ```
+pub fn choose_file(directory: &str) -> Result<String, String> {
     let files = io_tools::get_ovpn_files(directory);
     println!("Choose file you want to connect:\n");
     println!("l - last file;\n r - random file from the directory");
@@ -109,14 +145,17 @@ fn choose_file(directory: &str) -> Result<String, String> {
     }
 }
 
-fn setup() -> Result<(), String> {
-    let directory = io_tools::read_std_line("Enter path to your working directory: ");
-    let mut default_file = String::new();
+/// Runs initial setup and sets default file and directory
+///
+/// Returns nothing on Ok() and string with error on Err()
+pub fn setup() -> Result<(), String> {
+    let tdirectory = io_tools::read_std_line("Enter path to your working directory: ");
+    let mut tdefault_file = String::new();
 
     loop {
-        match choose_file(directory) {
+        match choose_file(&tdirectory) {
             Ok(name) => {
-                default_file = name;
+                tdefault_file = name;
                 break;
             }
             Err(err) => println!("{}", err),
@@ -124,8 +163,8 @@ fn setup() -> Result<(), String> {
     }
 
     let config = Config {
-        directory,
-        default_file,
+        directory: tdirectory,
+        default_file: tdefault_file,
     };
 
     match write_config(config) {
