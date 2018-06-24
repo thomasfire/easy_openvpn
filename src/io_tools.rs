@@ -77,7 +77,7 @@ pub fn get_ovpn_files(path: &str) -> Vec<String> {
             continue;
         }
         if smentry.is_file() && en_path.unwrap() == "ovpn" {
-            files.push(String::from(smentry.file_stem().unwrap().to_str().unwrap()));
+            files.push(String::from(smentry.file_name().unwrap().to_str().unwrap()));
         }
     }
 
