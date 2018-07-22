@@ -1,5 +1,7 @@
 extern crate libc;
 use std::process::{Command, Child};
+use std::thread;
+use std::time::Duration;
 use io_tools;
 use config_tools::{choose_file, read_config, write_config};
 //use libc::{kill, SIGTERM};
@@ -14,8 +16,8 @@ fn help_print() {
 }
 
 pub fn run_openvpn(path: &str) -> Result<Child, String> {
-    let openvpn = Command::new("sudo")
-        .args(&["openvpn", "--config", path])
+    let openvpn = Command::new("mate-terminal")
+        .args(&["-e", &format!("sudo openvpn --config {}", path)])
         .spawn()
         .expect("Failed to run `sudo openvpn`");
     Ok(openvpn)
@@ -28,7 +30,9 @@ pub fn kill_openvpn(process: &Child) {
         .args(&["kill", "-s", "SIGTERM", &format!("{}", proc_id)])
         .spawn()
         .expect("Couldn`t kill openvpn");
+    println!("Waiting openvpn is killed");
     kill_proc.wait().expect("Something has gone wrong while killing the openvpn");
+    println!("sudo kill -s SIGTERM is executed")
     //println!("status: {}", kill_proc.status);
     //unsafe { libc::kill(proc_id as i32, libc::SIGINT);}
 }
@@ -45,11 +49,18 @@ pub fn user_manager(mode: &str) -> Result<(), String> {
 
     let mut ovpn_proc = run_openvpn(&fpath)
         .expect("openvpn failed");
+
+
     loop {
         match io_tools::read_std_line("=> ").as_str() {
             "help" => help_print(),
+
             "switch" => {
                 kill_openvpn(&ovpn_proc);
+                match ovpn_proc.kill() {
+                    Ok(_) => println!("Success in killing openvpn"),
+                    Err(err) => println!("Error in killing openvpn: {:?}", err)
+                }
                 ovpn_proc.wait().expect("Failed to wait killing openvpn");
                 let filename = choose_file(&config.directory, false).unwrap();
                 // ovpn_proc.kill().expect("couldn`t kill the openvpn process");
@@ -64,12 +75,15 @@ pub fn user_manager(mode: &str) -> Result<(), String> {
                     .as_str())
                     .expect("failed to restart openvpn");
             }
+
             "exit" => ovpn_proc.kill().expect("couldn`t kill the openvpn process"),
+
             "restart" => {
                 ovpn_proc.kill().expect("couldn`t kill the openvpn process");
                 ovpn_proc = run_openvpn(&fpath)
                     .expect("openvpn failed");
             },
+
             _ => help_print(),
         };
     }
